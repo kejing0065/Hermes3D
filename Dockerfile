@@ -42,4 +42,5 @@ COPY --from=builder /app/next.config.mjs ./next.config.mjs
 
 EXPOSE 3000
 
-CMD ["node", "server/index.js"]
+# CMD ["node", "server/index.js"]
+CMD ["sh", "-c", "node server/demo-gateway-adapter.js & node server/index.js"]
