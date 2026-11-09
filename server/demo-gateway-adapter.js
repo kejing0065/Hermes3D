@@ -6,7 +6,10 @@ const { WebSocketServer } = require("ws");
 
 const ADAPTER_PORT = parseInt(process.env.DEMO_ADAPTER_PORT || "18789", 10);
 const MAIN_KEY = "main";
-const MODELS = [{ id: "demo/mock-office", name: "Mock Office", provider: "demo" }];
+const MODELS = [
+  { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "NVIDIA Nemotron-3 Ultra (550B)", provider: "nvidia" },
+  { id: "demo/mock-office", name: "Mock Office", provider: "demo" }
+];
 
 const agents = new Map([
   [
@@ -314,7 +317,6 @@ async function handleMethod(method, params, id, sendEvent) {
       const runId = typeof p.idempotencyKey === "string" && p.idempotencyKey ? p.idempotencyKey : randomId();
       if (!message) return resOk(id, { status: "no-op", runId });
 
-      const reply = buildDemoReply(agent, message);
       let aborted = false;
       activeRuns.set(runId, {
         runId,
@@ -337,13 +339,85 @@ async function handleMethod(method, params, id, sendEvent) {
         };
 
         try {
-          const words = reply.split(" ");
-          let partial = "";
-          for (const word of words) {
-            if (aborted) break;
-            partial = partial ? `${partial} ${word}` : word;
-            emitChat("delta", { message: { role: "assistant", content: partial } });
-            await new Promise((resolve) => setTimeout(resolve, 45));
+          const apiKey = (process.env.NVIDIA_API_KEY || process.env.NVAPI_KEY || "").trim();
+          let fullReply = "";
+
+          if (apiKey) {
+            const soul = files.get(agent.id + "/SOUL.md") || ("You are " + agent.name + ", an expert AI assistant with role: " + agent.role + ".");
+            const history = getHistory(sessionKey);
+            const messages = [
+              { role: "system", content: soul },
+              ...history.slice(-8).map((h) => ({ role: h.role, content: h.content })),
+              { role: "user", content: message },
+            ];
+
+            try {
+              const model = process.env.NVIDIA_MODEL || "nvidia/nemotron-3-ultra-550b-a55b";
+              const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer " + apiKey,
+                },
+                body: JSON.stringify({
+                  model,
+                  messages,
+                  temperature: 0.6,
+                  top_p: 0.95,
+                  max_tokens: 2048,
+                  stream: true,
+                }),
+              });
+
+              if (!response.ok) {
+                const errText = await response.text();
+                throw new Error("HTTP " + response.status + ": " + errText);
+              }
+
+              const reader = response.body.getReader();
+              const decoder = new TextDecoder("utf-8");
+              let buffer = "";
+
+              while (true) {
+                if (aborted) break;
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || "";
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (!trimmed.startsWith("data:")) continue;
+                  const dataStr = trimmed.slice(5).trim();
+                  if (!dataStr || dataStr === "[DONE]") continue;
+                  try {
+                    const parsed = JSON.parse(dataStr);
+                    const delta = parsed.choices?.[0]?.delta?.content || "";
+                    if (delta) {
+                      fullReply += delta;
+                      emitChat("delta", { message: { role: "assistant", content: fullReply } });
+                    }
+                  } catch {}
+                }
+              }
+            } catch (err) {
+              console.error("[NVIDIA NIM API Error]", err);
+              fullReply = "[NVIDIA Nemotron 3 Ultra 报错]: " + err.message + "\n\n💡 提示: 请检查 Render 环境变量中配置的 NVIDIA_API_KEY 是否正确。";
+              emitChat("delta", { message: { role: "assistant", content: fullReply } });
+            }
+          } else {
+            // Fallback when no NVIDIA_API_KEY provided
+            const mock = buildDemoReply(agent, message);
+            const promptNotice = "\n\n---\n*(⚡ 已配置连接 NVIDIA Nemotron-3-Ultra-550B 大模型。请在 Render 后台添加环境变量 `NVIDIA_API_KEY` 即可激活 5500 亿参数超强真实推理！)*";
+            fullReply = mock + promptNotice;
+            const words = fullReply.split(" ");
+            let partial = "";
+            for (const word of words) {
+              if (aborted) break;
+              partial = partial ? (partial + " " + word) : word;
+              emitChat("delta", { message: { role: "assistant", content: partial } });
+              await new Promise((resolve) => setTimeout(resolve, 30));
+            }
           }
 
           if (aborted) {
@@ -353,8 +427,8 @@ async function handleMethod(method, params, id, sendEvent) {
 
           const history = getHistory(sessionKey);
           history.push({ role: "user", content: message });
-          history.push({ role: "assistant", content: reply });
-          emitChat("final", { stopReason: "end_turn", message: { role: "assistant", content: reply } });
+          history.push({ role: "assistant", content: fullReply });
+          emitChat("final", { stopReason: "end_turn", message: { role: "assistant", content: fullReply } });
           sendEvent({
             type: "event",
             event: "presence",
