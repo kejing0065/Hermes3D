@@ -45,4 +45,3 @@ EXPOSE 3000
 # CMD ["node", "server/index.js"]
 CMD ["sh", "-c", "node server/demo-gateway-adapter.js & node server/index.js"]
 
-RUN apt-get update && apt-get install -y gh

@@ -19,6 +19,15 @@ const agents = new Map([
     },
   ],
   [
+    "demo-pm",
+    {
+      id: "demo-pm",
+      name: "Project Manager",
+      role: "Project Manager",
+      workspace: "/demo/pm",
+    },
+  ],
+  [
     "demo-researcher",
     {
       id: "demo-researcher",
@@ -38,7 +47,12 @@ const agents = new Map([
   ],
 ]);
 
-const files = new Map();
+const files = new Map([
+  [
+    "demo-pm/SOUL.md",
+    "# Role: Technical Project Manager (TPM / Scrum Master)\n\n## 身份定位\n你是团队的敏捷项目经理（Project Manager）。你的主要职责不是直接写具体业务代码，而是把控全局节奏、拆解需求、分配任务给其他 Agent、组织站会并识别项目风险。\n\n## 核心职责\n1. **需求拆解与任务派发 (Task Breakdown)**：\n   - 接收用户的宏观目标，将其拆解为具体的待办事项（User Stories / Tasks）。\n   - 负责维护 3D 办公室的 Kanban 看板（To Do -> In Progress -> Review -> Done）。\n   - 将子任务精准指派给适合的工种 Agent（Avery、Mika、Rune）。\n\n2. **进度跟踪与站会 (Standup & Tracking)**：\n   - 定期发起团队 Standup 站会，拉齐各 Agent 进度。\n   - 主动排查风险点（Blockers），若有 Agent 卡住及时协调。\n\n3. **交付把控 (Delivery)**：\n   - 监督 PR 与代码审查，确保测试通过后再推进交付。\n   - 输出结构化的进度简报给用户。\n\n## 行为与沟通准则\n- 条理清晰：始终采用 Markdown 结构化输出（列表、表格、进度）。\n- 目标导向：紧扣项目 Milestone，主动推动交付。\n- 办公室协作：需要找其他 Agent 时，主动发起 Huddle 对话。",
+  ],
+]);
 const sessionSettings = new Map();
 const conversationHistory = new Map();
 const activeRuns = new Map();
@@ -96,11 +110,15 @@ function buildDemoReply(agent, message) {
   const opening =
     agent.role === "Orchestrator"
       ? `${agent.name} here. Demo office is live and the team is synced.`
-      : `${agent.name} checking in from the ${agent.role.toLowerCase()} desk.`;
+      : agent.role === "Project Manager"
+        ? `${agent.name} checking in from the project management desk.`
+        : `${agent.name} checking in from the ${agent.role.toLowerCase()} desk.`;
   if (greetingOnly) {
     return agent.role === "Orchestrator"
       ? `${opening} I can coordinate the room, sketch a plan, or hand work to Research and Builder.`
-      : `${opening} Give me a concrete task and I will respond in-character with a focused next step.`;
+      : agent.role === "Project Manager"
+        ? `${opening} I can break down requirements, track tasks on the Kanban board, and coordinate our team (Avery, Mika, Rune). Give me a task!`
+        : `${opening} Give me a concrete task and I will respond in-character with a focused next step.`;
   }
   const focusLine =
     compactMessage.length > 160
@@ -111,7 +129,9 @@ function buildDemoReply(agent, message) {
       ? "I would turn this into source checks, constraints, and follow-up questions."
       : agent.role === "Builder"
         ? "I would translate this into implementation steps, edge cases, and validation."
-        : "I would route the work, keep the team aligned, and summarize the next move.";
+        : agent.role === "Project Manager"
+          ? "I will break down this requirement into user stories, track it on the Kanban board, and align the team for execution."
+          : "I would route the work, keep the team aligned, and summarize the next move.";
   return `${opening} Focus: ${focusLine}. ${action}`;
 }
 
