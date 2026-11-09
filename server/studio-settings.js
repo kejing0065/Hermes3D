@@ -75,7 +75,7 @@ const loadUpstreamGatewaySettings = (env = process.env) => {
   const adapterType =
     typeof gateway?.adapterType === "string" && gateway.adapterType.trim()
       ? gateway.adapterType.trim()
-      : "hermes";
+      : "demo";
   if (!token && adapterType === "hermes") {
     const defaults = readHermesGatewayDefaults(env);
     if (defaults) {

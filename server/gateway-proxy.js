@@ -80,6 +80,11 @@ const createFrameRateLimiter = (
  * Format: comma-separated hostnames, e.g. "gateway.percival-labs.ai,localhost"
  */
 const isUpstreamAllowed = (url) => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") return true;
+  } catch {}
   const allowlist = (process.env.UPSTREAM_ALLOWLIST || "").trim();
   if (!allowlist) {
     if (process.env.NODE_ENV === "production") {

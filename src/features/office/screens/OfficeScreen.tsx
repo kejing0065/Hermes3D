@@ -228,35 +228,83 @@ const ITEMS = [
 const GYM_WORKOUT_LATCH_MS = 60_000;
 const MAIN_AGENT_ID = "main";
 const DEMO_MAIN_SESSION_KEY = buildAgentMainSessionKey(MAIN_AGENT_ID, "main");
-const createDemoMainAgentSeed = (): {
-  agentId: string;
-  name: string;
-  runtimeName: string;
-  identityName: string;
-  sessionDisplayName: string;
-  role: string;
-  sessionKey: string;
-  avatarSeed: string;
-  avatarProfile: AgentAvatarProfile;
-  model: string;
-  thinkingLevel: string;
-  toolCallingEnabled: boolean;
-  showThinkingTraces: boolean;
-} => ({
-  agentId: MAIN_AGENT_ID,
-  name: "Main",
-  runtimeName: "Hermes3D Demo",
-  identityName: "Main",
-  sessionDisplayName: "Main",
-  role: "assistant",
-  sessionKey: DEMO_MAIN_SESSION_KEY,
-  avatarSeed: MAIN_AGENT_ID,
-  avatarProfile: createDefaultAgentAvatarProfile(MAIN_AGENT_ID),
-  model: "demo/main",
-  thinkingLevel: "medium",
-  toolCallingEnabled: false,
-  showThinkingTraces: false,
-});
+const createDemoFleetSeeds = () => [
+  {
+    agentId: "demo-pm",
+    name: "Project Manager",
+    runtimeName: "Hermes3D Demo",
+    identityName: "Project Manager",
+    sessionDisplayName: "Project Manager",
+    role: "Project Manager",
+    sessionKey: buildAgentMainSessionKey("demo-pm", "main"),
+    avatarSeed: "demo-pm",
+    avatarProfile: createDefaultAgentAvatarProfile("demo-pm"),
+    model: "demo/mock-office",
+    thinkingLevel: "high",
+    toolCallingEnabled: true,
+    showThinkingTraces: false,
+  },
+  {
+    agentId: "demo-coder",
+    name: "Neo (Code God)",
+    runtimeName: "Hermes3D Demo",
+    identityName: "Neo",
+    sessionDisplayName: "Neo (Code God)",
+    role: "Principal Engineer",
+    sessionKey: buildAgentMainSessionKey("demo-coder", "main"),
+    avatarSeed: "demo-coder",
+    avatarProfile: createDefaultAgentAvatarProfile("demo-coder"),
+    model: "demo/mock-office",
+    thinkingLevel: "high",
+    toolCallingEnabled: true,
+    showThinkingTraces: true,
+  },
+  {
+    agentId: "demo-orchestrator",
+    name: "Avery",
+    runtimeName: "Hermes3D Demo",
+    identityName: "Avery",
+    sessionDisplayName: "Avery",
+    role: "Orchestrator",
+    sessionKey: buildAgentMainSessionKey("demo-orchestrator", "main"),
+    avatarSeed: "demo-orchestrator",
+    avatarProfile: createDefaultAgentAvatarProfile("demo-orchestrator"),
+    model: "demo/mock-office",
+    thinkingLevel: "medium",
+    toolCallingEnabled: false,
+    showThinkingTraces: false,
+  },
+  {
+    agentId: "demo-researcher",
+    name: "Mika",
+    runtimeName: "Hermes3D Demo",
+    identityName: "Mika",
+    sessionDisplayName: "Mika",
+    role: "Research",
+    sessionKey: buildAgentMainSessionKey("demo-researcher", "main"),
+    avatarSeed: "demo-researcher",
+    avatarProfile: createDefaultAgentAvatarProfile("demo-researcher"),
+    model: "demo/mock-office",
+    thinkingLevel: "medium",
+    toolCallingEnabled: false,
+    showThinkingTraces: false,
+  },
+  {
+    agentId: "demo-builder",
+    name: "Rune",
+    runtimeName: "Hermes3D Demo",
+    identityName: "Rune",
+    sessionDisplayName: "Rune",
+    role: "Builder",
+    sessionKey: buildAgentMainSessionKey("demo-builder", "main"),
+    avatarSeed: "demo-builder",
+    avatarProfile: createDefaultAgentAvatarProfile("demo-builder"),
+    model: "demo/mock-office",
+    thinkingLevel: "medium",
+    toolCallingEnabled: false,
+    showThinkingTraces: false,
+  },
+];
 const MAX_HERMES_LOG_ENTRIES = 200;
 const MAX_HERMES_AGENT_OUTPUT_LINES = 12;
 const OFFICE_DANCE_MS = 60_000;
@@ -2489,7 +2537,7 @@ export function OfficeScreen({
       setLoading(false);
       if (stateRef.current.agents.length === 0) {
         if (selectedAdapterType === "demo") {
-          hydrateAgents([createDemoMainAgentSeed()], MAIN_AGENT_ID);
+          hydrateAgents(createDemoFleetSeeds(), "demo-pm");
           setAgentsLoaded(true);
         } else {
           setAgentsLoaded(false);
@@ -2509,7 +2557,7 @@ export function OfficeScreen({
     if (selectedAdapterType !== "demo") return;
     if (status !== "disconnected") return;
     if (state.agents.length > 0) return;
-    hydrateAgents([createDemoMainAgentSeed()], MAIN_AGENT_ID);
+    hydrateAgents(createDemoFleetSeeds(), "demo-pm");
     setAgentsLoaded(true);
   }, [hydrateAgents, selectedAdapterType, state.agents.length, status]);
 

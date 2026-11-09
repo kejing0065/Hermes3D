@@ -720,7 +720,7 @@ export const useGatewayConnection = (
   const [gatewayUrl, setGatewayUrl] = useState(DEFAULT_UPSTREAM_GATEWAY_URL);
   const [token, setToken] = useState("");
   const [selectedAdapterType, setSelectedAdapterTypeState] =
-    useState<StudioGatewayAdapterType>("hermes");
+    useState<StudioGatewayAdapterType>("demo");
   const [adapterProfiles, setAdapterProfiles] = useState<
     Partial<Record<StudioGatewayAdapterType, { url: string; token: string }>>
   >({});

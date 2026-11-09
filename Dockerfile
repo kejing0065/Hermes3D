@@ -24,6 +24,8 @@ RUN npm run build
 FROM node:22-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV UPSTREAM_ALLOWLIST=localhost,127.0.0.1,0.0.0.0
+ENV HERMES3D_GATEWAY_ADAPTER_TYPE=demo
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Links images to the repository on GHCR, so packages created by a push
