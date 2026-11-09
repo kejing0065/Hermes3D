@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+//import type { NextConfig } from "next";
 import path from "node:path";
 
 const securityHeaders = [
@@ -60,7 +60,7 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
