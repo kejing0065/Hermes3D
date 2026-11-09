@@ -157,6 +157,101 @@ function buildDemoReply(agent, message) {
   return `${opening} Focus: ${focusLine}. ${action}`;
 }
 
+
+async function fetchGitHubContext(message, defaultRepo) {
+  const urlMatch = message.match(/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)/i);
+  const mentionMatch = message.match(/(?:repo|仓库|项目)[:\s]+([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)/i);
+  const keywordMatch = /(github|repo|仓库|代码库|commit|pr|issue|分支|branch|pull request)/i.test(message);
+
+  let owner = null;
+  let repo = null;
+
+  if (urlMatch) {
+    owner = urlMatch[1];
+    repo = urlMatch[2].replace(/\.git$/i, "");
+  } else if (mentionMatch) {
+    owner = mentionMatch[1];
+    repo = mentionMatch[2].replace(/\.git$/i, "");
+  } else if (keywordMatch && defaultRepo && defaultRepo.includes("/")) {
+    const parts = defaultRepo.split("/");
+    owner = parts[0]?.trim();
+    repo = parts[1]?.trim();
+  }
+
+  if (!owner || !repo) return null;
+
+  const token = (process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "").trim();
+  const headers = {
+    "User-Agent": "Hermes3D-Agent/1.0",
+    "Accept": "application/vnd.github.v3+json",
+  };
+  if (token) {
+    headers["Authorization"] = "Bearer " + token;
+  }
+
+  try {
+    const [repoRes, commitsRes, issuesRes] = await Promise.all([
+      fetch("https://api.github.com/repos/" + owner + "/" + repo, { headers }),
+      fetch("https://api.github.com/repos/" + owner + "/" + repo + "/commits?per_page=5", { headers }),
+      fetch("https://api.github.com/repos/" + owner + "/" + repo + "/issues?per_page=5&state=all", { headers }),
+    ]);
+
+    if (!repoRes.ok) {
+      if (repoRes.status === 404) {
+        return "[GitHub 提示]: 仓库 " + owner + "/" + repo + " 未找到或为私有仓库（若是私有仓库，请在 Render 环境变量中配置 GITHUB_TOKEN）。";
+      }
+      return null;
+    }
+
+    const repoData = await repoRes.json();
+    const commits = commitsRes.ok ? await commitsRes.json() : [];
+    const issues = issuesRes.ok ? await issuesRes.json() : [];
+
+    let context = "\n[实时 GitHub 仓库数据 (" + owner + "/" + repo + ")]\n";
+    context += "- 仓库全名: " + repoData.full_name + "\n";
+    context += "- 描述: " + (repoData.description || "无") + "\n";
+    context += "- 默认分支: " + repoData.default_branch + " | Stars: " + repoData.stargazers_count + " | Open Issues: " + repoData.open_issues_count + "\n";
+
+    if (Array.isArray(commits) && commits.length > 0) {
+      context += "- 最近 Commit 提交记录:\n";
+      for (const c of commits.slice(0, 5)) {
+        const msg = c.commit?.message?.split("\n")[0] || "";
+        const author = c.commit?.author?.name || c.author?.login || "unknown";
+        context += "  * [" + (c.sha ? c.sha.slice(0, 7) : "") + "] " + msg + " (by " + author + ")\n";
+      }
+    }
+
+    if (Array.isArray(issues) && issues.length > 0) {
+      context += "- 最近 Issues / PR 列表:\n";
+      for (const iss of issues.slice(0, 5)) {
+        const type = iss.pull_request ? "PR" : "Issue";
+        context += "  * #" + iss.number + " [" + String(iss.state).toUpperCase() + "] " + iss.title + " (" + type + ")\n";
+      }
+    }
+
+    // Check if user asked to read a specific file
+    const fileMatch = message.match(/(?:文件|file|查看|read|check|view|cat)\s+([a-zA-Z0-9_./-]+\.[a-zA-Z0-9]+)/i);
+    if (fileMatch) {
+      const filePath = fileMatch[1];
+      try {
+        const fileRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/contents/" + filePath, { headers });
+        if (fileRes.ok) {
+          const fileData = await fileRes.json();
+          if (fileData.content && fileData.encoding === "base64") {
+            const decoded = Buffer.from(fileData.content, "base64").toString("utf8");
+            context += "\n[文件内容: " + filePath + "]\n```\n" + decoded.slice(0, 4000) + "\n```\n";
+          }
+        }
+      } catch {}
+    }
+
+    return context;
+  } catch (err) {
+    console.error("[GitHub Context Fetch Error]", err);
+    return null;
+  }
+}
+
 async function handleMethod(method, params, id, sendEvent) {
   const p = params || {};
 
@@ -345,10 +440,14 @@ async function handleMethod(method, params, id, sendEvent) {
           if (apiKey) {
             const soul = files.get(agent.id + "/SOUL.md") || ("You are " + agent.name + ", an expert AI assistant with role: " + agent.role + ".");
             const history = getHistory(sessionKey);
+            const defaultRepo = (process.env.DEFAULT_GITHUB_REPO || process.env.GITHUB_REPO || "kejing0065/Hermes3D").trim();
+            const ghContext = await fetchGitHubContext(message, defaultRepo);
+            const userContent = ghContext ? (message + "\n\n" + ghContext) : message;
+
             const messages = [
               { role: "system", content: soul },
               ...history.slice(-8).map((h) => ({ role: h.role, content: h.content })),
-              { role: "user", content: message },
+              { role: "user", content: userContent },
             ];
 
             try {
