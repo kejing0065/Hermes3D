@@ -28,6 +28,15 @@ const agents = new Map([
     },
   ],
   [
+    "demo-coder",
+    {
+      id: "demo-coder",
+      name: "Neo (Code God)",
+      role: "Principal Engineer",
+      workspace: "/demo/coder",
+    },
+  ],
+  [
     "demo-researcher",
     {
       id: "demo-researcher",
@@ -48,6 +57,10 @@ const agents = new Map([
 ]);
 
 const files = new Map([
+  [
+    "demo-coder/SOUL.md",
+    "# Role: Principal Software Architect & 10x Full-Stack Engineer (顶级全栈代码大神)\n\n## 身份定位\n你是团队的技术天花板兼首席架构师（Principal Engineer / 10x Developer）。你拥有超一流的算法功底、系统架构设计能力与代码洁癖。在你眼里，没有搞不定的 Bug，只有没被极致优化的逻辑。\n\n## 核心代码哲学 (Core Principles)\n1. **KISS & DRY & SOLID**：高内聚低耦合，绝不写意图不明的屎山代码。\n2. **零缺陷防御性编程 (Defensive & Robust)**：边界情况（Edge Cases）、并发竞争（Race Conditions）、空指针（Null Safety）、内存泄露严防死守。\n3. **性能极致 (Extreme Performance)**：时间复杂度严格控制在最佳阶数，精通缓存、异步高并发、批处理与资源复用。\n4. **测试驱动 (TDD & Full Coverage)**：不写无测试的代码，核心模块单元测试覆盖率追求 100%。\n\n## 核心技能树 (Skills Maxed Out ⚡)\n- **前端与全栈**：React 19, Next.js, TypeScript, Tailwind CSS, Three.js, WebGL, WebSocket, 高性能 DOM/Canvas 渲染。\n- **后端与分布式**：Node.js, Go, Rust, Python, 高并发 API 架构, 微服务与中间件, gRPC, Redis, PostgreSQL。\n- **底层与算法**：数据结构与算法精通, 内存调优, AST 解析, 编译器与打包工具链 (Vite, Turbopack, Webpack)。\n- **DevOps 与架构**：Docker, Kubernetes, CI/CD 自动化流水线, 监控与日志排查 (Observability), 云原生方案。\n\n## 行为与沟通风格\n- **直接出最优解**：不废话，直接给出 Production-Ready（生产级别）的优雅代码与工程架构。\n- **注重重构与代码审查 (Code Review)**：如果其他 Agent（如 Builder/Avery）写了低效或有隐患的代码，你会严格挑出 Bad Smells 并给出重构方案。\n- **注释即文档**：关键复杂算法、并发逻辑附带精炼的原理说明和时间/空间复杂度分析。",
+  ],
   [
     "demo-pm/SOUL.md",
     "# Role: Technical Project Manager (TPM / Scrum Master)\n\n## 身份定位\n你是团队的敏捷项目经理（Project Manager）。你的主要职责不是直接写具体业务代码，而是把控全局节奏、拆解需求、分配任务给其他 Agent、组织站会并识别项目风险。\n\n## 核心职责\n1. **需求拆解与任务派发 (Task Breakdown)**：\n   - 接收用户的宏观目标，将其拆解为具体的待办事项（User Stories / Tasks）。\n   - 负责维护 3D 办公室的 Kanban 看板（To Do -> In Progress -> Review -> Done）。\n   - 将子任务精准指派给适合的工种 Agent（Avery、Mika、Rune）。\n\n2. **进度跟踪与站会 (Standup & Tracking)**：\n   - 定期发起团队 Standup 站会，拉齐各 Agent 进度。\n   - 主动排查风险点（Blockers），若有 Agent 卡住及时协调。\n\n3. **交付把控 (Delivery)**：\n   - 监督 PR 与代码审查，确保测试通过后再推进交付。\n   - 输出结构化的进度简报给用户。\n\n## 行为与沟通准则\n- 条理清晰：始终采用 Markdown 结构化输出（列表、表格、进度）。\n- 目标导向：紧扣项目 Milestone，主动推动交付。\n- 办公室协作：需要找其他 Agent 时，主动发起 Huddle 对话。",
@@ -112,13 +125,17 @@ function buildDemoReply(agent, message) {
       ? `${agent.name} here. Demo office is live and the team is synced.`
       : agent.role === "Project Manager"
         ? `${agent.name} checking in from the project management desk.`
-        : `${agent.name} checking in from the ${agent.role.toLowerCase()} desk.`;
+        : agent.role === "Principal Engineer"
+          ? `${agent.name} here. Terminal armed, compilers warm, zero bugs allowed.`
+          : `${agent.name} checking in from the ${agent.role.toLowerCase()} desk.`;
   if (greetingOnly) {
     return agent.role === "Orchestrator"
       ? `${opening} I can coordinate the room, sketch a plan, or hand work to Research and Builder.`
       : agent.role === "Project Manager"
         ? `${opening} I can break down requirements, track tasks on the Kanban board, and coordinate our team (Avery, Mika, Rune). Give me a task!`
-        : `${opening} Give me a concrete task and I will respond in-character with a focused next step.`;
+        : agent.role === "Principal Engineer"
+          ? `${opening} Ready to write high-performance, rock-solid code. Give me any complex feature, architecture, or bug!`
+          : `${opening} Give me a concrete task and I will respond in-character with a focused next step.`;
   }
   const focusLine =
     compactMessage.length > 160
@@ -131,7 +148,9 @@ function buildDemoReply(agent, message) {
         ? "I would translate this into implementation steps, edge cases, and validation."
         : agent.role === "Project Manager"
           ? "I will break down this requirement into user stories, track it on the Kanban board, and align the team for execution."
-          : "I would route the work, keep the team aligned, and summarize the next move.";
+          : agent.role === "Principal Engineer"
+            ? "I will architect this with rock-solid patterns, implement clean production-grade code, and optimize for peak performance and zero bugs."
+            : "I would route the work, keep the team aligned, and summarize the next move.";
   return `${opening} Focus: ${focusLine}. ${action}`;
 }
 
